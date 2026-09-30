@@ -1,0 +1,57 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets/
+.secrets/
+
+# Local AI/tool configuration
+opencode.local.json
+.opencode.local/
+.cursor/local/
+.claude/local/
+
+# Local databases and dumps
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+backups/
+dumps/
+
+# Logs and runtime data
+*.log
+logs/
+tmp/
+temp/
+runtime/
+
+# Build artifacts
+bin/
+dist/
+build/
+coverage/
+*.prof
+# Coverage profiles are generated output, not source.
+coverage.out
+coverage.txt
+coverage.html
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test-results/
+reports/

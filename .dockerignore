@@ -1,0 +1,54 @@
+# Anything that must not enter the build context.
+#
+# A secret that reaches the daemon is already compromised: a layer can be
+# pushed to a registry and a local image can be inspected. Exclusion happens
+# here rather than by remembering not to copy the file.
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets/
+.secrets/
+
+# Version control and agent configuration
+.git
+.gitignore
+.github
+.opencode
+.claude
+.cursor
+.vscode
+.idea
+
+# Documentation is not needed to build or run the service
+docs/
+README.md
+Makefile
+Dockerfile
+.dockerignore
+
+# Build output and test artefacts
+bin/
+dist/
+build/
+coverage/
+coverage.out
+coverage.txt
+coverage.html
+*.prof
+*.test
+test-results/
+reports/
+
+# Editor and OS noise
+*.swp
+.DS_Store
+Thumbs.db

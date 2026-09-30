@@ -1,0 +1,56 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gofumpt
+
+linters:
+  default: standard
+  enable:
+    # Correctness rules that matter for money and state.
+    - errorlint
+    - exhaustive
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - revive
+    - unconvert
+    - wastedassign
+    - whitespace
+  settings:
+    exhaustive:
+      # Only states and triggers are closed enums; matching them exhaustively
+      # is what stops a new state from being silently mishandled.
+      default-signifies-exhaustive: true
+    gosec:
+      # Test helpers legitimately use weak values and short deadlines.
+      excludes:
+        - G104
+    revive:
+      rules:
+        - name: exported
+        - name: context-as-argument
+        - name: error-strings
+        - name: error-naming
+        - name: unreachable-code
+  exclusions:
+    generated: lax
+    rules:
+      # Error strings are lower-case and unpunctuated by design, and the error
+      # naming rule would otherwise fight the sentinel style used throughout.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+
+issues:
+  # Report everything; a code that is written must be reviewed.
+  max-issues-per-linter: 0
+  max-same-issues: 0

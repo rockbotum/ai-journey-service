@@ -1,0 +1,84 @@
+# The API together with the PostgreSQL it is configured against.
+#
+# The project name is set explicitly. Without it Compose derives the name from
+# the directory holding the file, which is the generic "deployments", and any
+# other stack that happens to live in a directory with the same name ends up in
+# the same project namespace. That leads to one stack recreating the other
+# one's containers on "up", which is not a property anyone wants in a deploy
+# file.
+name: ai-journey-service
+#
+# The build context is the repository root, because go.mod, the sources and the
+# module cache all live there. The ignore file is read from the context root as
+# well, which is why .dockerignore sits next to go.mod and not next to this
+# file: a .dockerignore inside deployments/ is silently ignored, and the
+# excluded .env would be shipped to the daemon.
+#
+# No credentials are stored here. The two secret variables are mandatory on
+# purpose: Compose refuses to start and names the missing one, instead of booting
+# a service that cannot reach the supplier. Copy deployments/.env.example to
+# deployments/.env and fill it in.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deployments/.env}
+      POSTGRES_DB: ${DB_NAME:-bookingdb}
+    # PGDATA lives in /var/lib/postgresql/18/docker, so the volume is mounted at
+    # the parent: mounting the version-specific path breaks the next major bump.
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      # Migrations are applied by the postgres entrypoint, and only while the
+      # data directory is empty, which is the first start. Against an existing
+      # volume the files are ignored, so schema changes have to be applied
+      # explicitly. There is no migration runner in the service itself.
+      - ../migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-bookingdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    image: ai-journey-service:dev
+    container_name: ai-booking-srvice
+    restart: unless-stopped
+    environment:
+      # The application reads a single DSN rather than the individual parts. It
+      # is assembled here so the two containers cannot disagree about which
+      # database is authoritative. A password containing @ or / would need URL
+      # encoding, since it is embedded in a URL.
+      DB_DSN: "postgres://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-bookingdb}?sslmode=disable"
+      AUTH_CREDENTIALS: ${AUTH_CREDENTIALS:?set AUTH_CREDENTIALS in deployments/.env}
+      SUPPLIER_BASE_URL: ${SUPPLIER_BASE_URL:-https://supplier.example.com}
+      SUPPLIER_ID: ${SUPPLIER_ID:?set SUPPLIER_ID in deployments/.env}
+      SUPPLIER_API_KEY: ${SUPPLIER_API_KEY:?set SUPPLIER_API_KEY in deployments/.env}
+      # The container always listens on 8080. HTTP_PORT below is the host port.
+      HTTP_LISTEN: ":8080"
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Exec form on purpose: the runtime image is distroless and has no shell, so
+      # CMD-SHELL would fail on a missing /bin/sh. The binary performs the
+      # request itself, which means a container that is listening but cannot
+      # serve is reported unhealthy rather than healthy.
+      test: ["CMD", "/usr/local/bin/server", "-health-check"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
